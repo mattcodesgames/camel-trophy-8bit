@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camel Trophy · 8-bit collection</title>
+<meta name="description" content="Play the 1985 Camel Trophy video games for the ZX Spectrum and Commodore 64 in your browser, running on emulators compiled to WebAssembly.">
+<meta property="og:title" content="Camel Trophy · 8-bit collection">
+<meta property="og:description" content="The 1985 Camel Trophy games for the ZX Spectrum and Commodore 64, playable in your browser.">
+<meta property="og:image" content="img/zx-route-map.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d130d;
+    --bg-2: #141c14;
+    --card: #182118;
+    --line: #2b382b;
+    --text: #ecebe2;
+    --muted: #a6ab9b;
+    --sand: #f5c400;
+    --sand-ink: #1a1500;
+    --zx-red: #d72020;
+    --zx-yellow: #f5d000;
+    --zx-green: #22c022;
+    --zx-cyan: #20c0d0;
+    --c64: #8b7fe8;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color: var(--sand); }
+  img { max-width: 100%; display: block; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+  /* hero */
+  header.hero {
+    position: relative; overflow: hidden;
+    background:
+      radial-gradient(1200px 500px at 70% -10%, rgba(245,196,0,.18), transparent 60%),
+      linear-gradient(180deg, #101910 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--line);
+  }
+  .hero .wrap { padding-top: 72px; padding-bottom: 64px; display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 10px;
+    font: 10px/1 "Press Start 2P", monospace; letter-spacing: .04em; color: var(--sand);
+    border: 1px solid rgba(245,196,0,.4); border-radius: 999px; padding: 8px 14px; background: rgba(245,196,0,.06);
+  }
+  .stripes { display: inline-flex; transform: skewX(-25deg); }
+  .stripes i { width: 7px; height: 12px; display: block; }
+  h1 {
+    font: 400 clamp(28px, 5vw, 52px)/1.15 "Press Start 2P", monospace; margin: 22px 0 18px; color: var(--sand);
+    text-shadow: 4px 4px 0 #3a2f00;
+  }
+  h1 small { display: block; font-size: .42em; color: var(--text); text-shadow: none; margin-top: 14px; letter-spacing: .02em; }
+  .lead { font-size: 18px; color: var(--muted); max-width: 54ch; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 800;
+    padding: 14px 20px; border-radius: 10px; border: 2px solid transparent; transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-zx { background: var(--sand); color: var(--sand-ink); box-shadow: 0 6px 0 #8a6f00; }
+  .btn-c64 { background: var(--c64); color: #120d3a; box-shadow: 0 6px 0 #4b42a0; }
+  .btn-ghost { border-color: var(--line); color: var(--text); background: transparent; }
+  .hero-shots { position: relative; aspect-ratio: 4/3.2; }
+  .hero-shots img {
+    position: absolute; width: 78%; border-radius: 10px; image-rendering: pixelated;
+    box-shadow: 0 20px 50px rgba(0,0,0,.6); border: 3px solid #000;
+  }
+  .hero-shots img:first-child { left: 0; top: 0; transform: rotate(-3deg); }
+  .hero-shots img:last-child { right: 0; bottom: 0; transform: rotate(3deg); }
+
+  /* sections */
+  section { padding: 72px 0; border-bottom: 1px solid var(--line); }
+  h2 { font: 400 clamp(16px, 2.4vw, 22px)/1.4 "Press Start 2P", monospace; color: var(--sand); margin: 0 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 36px; }
+
+  .game {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; margin-bottom: 40px;
+  }
+  .game-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 24px 28px; border-bottom: 1px solid var(--line); }
+  .game-head h3 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -.01em; }
+  .platform { font: 10px/1 "Press Start 2P", monospace; padding: 8px 10px; border-radius: 6px; margin-right: 10px; vertical-align: middle; }
+  .platform.zx { background: #000; color: #fff; box-shadow: inset -36px 0 0 -30px var(--zx-red), inset -42px 0 0 -30px var(--zx-yellow), inset -48px 0 0 -30px var(--zx-green), inset -54px 0 0 -30px var(--zx-cyan); padding-right: 64px; }
+  .platform.c64 { background: #40318d; color: #a59bf0; }
+  .meta { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+  .shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: #000; }
+  .shots.four { grid-template-columns: repeat(4, 1fr); }
+  .shots figure { margin: 0; position: relative; }
+  .shots img { width: 100%; image-rendering: pixelated; }
+  .shots figcaption {
+    position: absolute; left: 8px; bottom: 8px; font-size: 12px; font-weight: 600;
+    background: rgba(0,0,0,.72); padding: 3px 8px; border-radius: 4px;
+  }
+  .game-body { display: grid; grid-template-columns: 1.3fr 1fr; gap: 32px; padding: 28px; }
+  .game-body h4 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+  .game-body p { margin: 0 0 14px; }
+  table.keys { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.keys td { padding: 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.keys td:first-child { color: var(--muted); padding-right: 14px; white-space: nowrap; }
+  kbd {
+    font: 600 12px/1 ui-monospace, Menlo, monospace; background: #0b0f0b; border: 1px solid #3a4a3a; border-bottom-width: 3px;
+    border-radius: 5px; padding: 3px 6px; color: var(--text);
+  }
+  ol.parts { margin: 0 0 14px; padding-left: 20px; }
+  ol.parts li { margin-bottom: 6px; }
+
+  /* history */
+  .history { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .fact { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+  .fact .year { font: 400 18px/1 "Press Start 2P", monospace; color: var(--sand); margin-bottom: 12px; }
+  .fact p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  .tech { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .tech .fact ul { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 15px; }
+
+  ul.sources { columns: 2; column-gap: 40px; padding-left: 18px; color: var(--muted); }
+  ul.sources li { break-inside: avoid; margin-bottom: 10px; }
+
+  footer { padding: 40px 0 56px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+
+  @media (max-width: 860px) {
+    .hero .wrap, .game-body, .history, .tech { grid-template-columns: 1fr; }
+    .hero .wrap { padding-top: 48px; }
+    .hero-shots { max-width: 520px; }
+    .shots, .shots.four { grid-template-columns: repeat(2, 1fr); }
+    ul.sources { columns: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) { .btn { transition: none; } html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <span class="badge"><span class="stripes"><i style="background:#d72020"></i><i style="background:#f5d000"></i><i style="background:#22c022"></i><i style="background:#20c0d0"></i></span> 8-BIT · 1985</span>
+      <h1>Camel Trophy<small>The 8-bit video games, playable in your browser</small></h1>
+      <p class="lead">Two 1985 tie-ins with the legendary Land Rover expedition, running on emulators written in C and compiled to WebAssembly. No plug-ins and no downloads: click Play and the tape or disk loads itself.</p>
+      <div class="cta">
+        <a class="btn btn-zx" href="spectrum/">&#9654; Play ZX Spectrum</a>
+        <a class="btn btn-c64" href="c64/">&#9654; Play Commodore 64</a>
+        <a class="btn btn-ghost" href="#games">About the games</a>
+      </div>
+    </div>
+    <div class="hero-shots" aria-hidden="true">
+      <img src="img/zx-route-map.png" alt="">
+      <img src="img/c64-plane-drop.png" alt="">
+    </div>
+  </div>
+</header>
+
+<main>
+<section id="games">
+  <div class="wrap">
+    <h2>The games</h2>
+    <p class="sub">Each game is a single self-contained page: the emulator, the system ROM or replacement kernel, and the original tape or disk are all built in.</p>
+
+    <!-- ZX Spectrum -->
+    <article class="game">
+      <div class="game-head">
+        <div>
+          <h3><span class="platform zx">ZX SPECTRUM 48K</span>Camel Trophy Game</h3>
+          <div class="meta">Aquarius Edizioni, Italy, 1985 · Simone Majocchi, Giorgio Arcangeli, Eugenio Ciceri, Bruno Molteni · <strong>now in English</strong></div>
+        </div>
+        <a class="btn btn-zx" href="spectrum/">&#9654; Play</a>
+      </div>
+      <div class="shots">
+        <figure><img src="img/zx-loading.png" alt="ZX Spectrum loading screen: Camel Trophy Game by Camel Productions, Aquarius Edizioni and Digiteam" loading="lazy"><figcaption>Loading screen</figcaption></figure>
+        <figure><img src="img/zx-quiz.png" alt="Qualifying quiz question about diesel engines" loading="lazy"><figcaption>Qualifying quiz</figcaption></figure>
+        <figure><img src="img/zx-route-map.png" alt="Zaire route map with route details" loading="lazy"><figcaption>Route selection</figcaption></figure>
+        <figure><img src="img/zx-qualification.png" alt="Land Rovers crossing a jungle river, captioned Camel Trophy Qualification" loading="lazy"><figcaption>Qualification</figcaption></figure>
+        <figure><img src="img/zx-day-briefing.png" alt="Day 1 itinerary with special stages, miles and fuel" loading="lazy"><figcaption>Day briefing</figcaption></figure>
+        <figure><img src="img/zx-driving.png" alt="Driving the Land Rover with the dashboard gauges below" loading="lazy"><figcaption>Driving</figcaption></figure>
+      </div>
+      <div class="game-body">
+        <div>
+          <h4>How it plays</h4>
+          <p>Italy's first big commercial Spectrum game arrives on one tape in three parts, and each part loads the next when you need it:</p>
+          <ol class="parts">
+            <li><strong>Qualifying quiz</strong>: 32 questions on off-road mechanics, survival, navigation and first aid. Your score earns you a crew code.</li>
+            <li><strong>Route selection</strong>: Zaire, the Amazon, Borneo, or plan your own ten days in D.I.Y. mode.</li>
+            <li><strong>Driving game</strong>: rebuild your Land Rover each morning, then tackle fords, humps, bridge building and jungle forks.</li>
+          </ol>
+          <p>The original is in Italian. This edition translates every screen into English, including captions and maps drawn into the pictures, by patching the original tape. The Italian tape is kept untouched in the repository.</p>
+        </div>
+        <div>
+          <h4>Controls</h4>
+          <table class="keys">
+            <tr><td>Start</td><td>Click the screen; <kbd>LOAD ""</kbd> is typed for you</td></tr>
+            <tr><td>Quiz</td><td><kbd>1</kbd>–<kbd>4</kbd> to answer, <kbd>Enter</kbd> to confirm</td></tr>
+            <tr><td>Route</td><td><kbd>Y</kbd> accepts a route</td></tr>
+            <tr><td>Driving</td><td>Kempston: arrow keys + <kbd>Tab</kbd>; keyboard mode: <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> <kbd>T</kbd></td></tr>
+            <tr><td>Rebuild</td><td><kbd>9</kbd> choose a part, <kbd>0</kbd> pick it up</td></tr>
+            <tr><td>Extras</td><td>Turbo load, one save slot, on-screen keyboard</td></tr>
+          </table>
+        </div>
+      </div>
+    </article>
+
+    <!-- Commodore 64 -->
+    <article class="game">
+      <div class="game-head">
+        <div>
+          <h3><span class="platform c64">COMMODORE 64</span>Camel Trophy Video Game</h3>
+          <div class="meta">Tequila, 1985 · joystick, one player</div>
+        </div>
+        <a class="btn btn-c64" href="c64/">&#9654; Play</a>
+      </div>
+      <div class="shots four">
+        <figure><img src="img/c64-title.png" alt="New title screen with the Camel Trophy badge and credits" loading="lazy"><figcaption>Title screen</figcaption></figure>
+        <figure><img src="img/c64-title-picture.png" alt="Original Camel Trophy Video Game title picture by Tequila" loading="lazy"><figcaption>Original title</figcaption></figure>
+        <figure><img src="img/c64-plane-drop.png" alt="Supply plane flying over the jungle towards the drop target" loading="lazy"><figcaption>Supply drop</figcaption></figure>
+        <figure><img src="img/c64-result.png" alt="Result screen showing the prize" loading="lazy"><figcaption>Result</figcaption></figure>
+      </div>
+      <div class="game-body">
+        <div>
+          <h4>How it plays</h4>
+          <p>A run of short arcade challenges set on the expedition:</p>
+          <ol class="parts">
+            <li><strong>Supply drop</strong>: release the crate from the plane and steer its parachute onto the target.</li>
+            <li><strong>Jungle drive</strong>: keep the Land Rover clear of the bushes.</li>
+            <li><strong>Refuelling</strong>: waggle the joystick to fill the tank before time runs out.</li>
+            <li><strong>Bridge crossing</strong> and a <strong>rough-track</strong> run to the finish.</li>
+          </ol>
+          <p>The disk image is a cracked release by CFB; its cracker intro is replaced by a new title and credits screen written in 6502 assembly. The game itself is unchanged.</p>
+        </div>
+        <div>
+          <h4>Controls</h4>
+          <table class="keys">
+            <tr><td>Joystick</td><td>Arrow keys + <kbd>Space</kbd> to fire (port 2); gamepads work too</td></tr>
+            <tr><td>Start</td><td>Fire to skip the intro, fire again to start</td></tr>
+            <tr><td>Keyboard</td><td><kbd>Enter</kbd> RETURN · <kbd>Esc</kbd> RUN/STOP · <kbd>F1</kbd>–<kbd>F7</kbd></td></tr>
+            <tr><td>Save / load</td><td><kbd>F9</kbd> / <kbd>F10</kbd>, reset <kbd>F12</kbd></td></tr>
+            <tr><td>Touch</td><td>An on-screen joystick appears on phones and tablets</td></tr>
+          </table>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section id="history">
+  <div class="wrap">
+    <h2>A bit of history</h2>
+    <p class="sub">The Camel Trophy was an annual off-road expedition, held from 1980 to 2000 and famous for its sand-yellow Land Rovers.</p>
+    <div class="history">
+      <div class="fact"><div class="year">1984</div><p>Simone Majocchi sketches a Camel Trophy computer game in Milan, working with the team around the Italian tape magazine <em>Run</em>.</p></div>
+      <div class="fact"><div class="year">1985</div><p>The Spectrum master tape goes for duplication on 16 September 1985. A national radio campaign starts on 25 September, and the game sells for Lit. 12,000.</p></div>
+      <div class="fact"><div class="year">1985–86</div><p>Tequila releases the Commodore 64 <em>Camel Trophy Video Game</em>, a set of short joystick challenges. It's catalogued on Lemon64 and CSDb.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="tech">
+  <div class="wrap">
+    <h2>Under the bonnet</h2>
+    <p class="sub">Both emulators are small, dependency-free C programs compiled to WebAssembly with Zig.</p>
+    <div class="tech">
+      <div class="fact">
+        <strong>ZX Spectrum 48K</strong>
+        <ul>
+          <li>Z80 core with all documented and undocumented opcodes and flags</li>
+          <li>Edge-accurate TZX playback, so the original turbo loader runs unmodified</li>
+          <li>Translation tool rebuilds the BASIC, patches machine-code text and re-encodes the compressed route maps</li>
+        </ul>
+      </div>
+      <div class="fact">
+        <strong>Commodore 64 (PAL)</strong>
+        <ul>
+          <li>6510, VIC-II with sprites and raster IRQs, two CIAs, and a 3-voice SID with filter</li>
+          <li>No Commodore ROMs: a small replacement kernel with trapped calls, plus an original font</li>
+          <li>New title screen with a sprite-multiplexed badge, raster bars and a SID tune</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <h2>Sources &amp; credits</h2>
+    <p class="sub">Original games © their respective owners. Camel and Camel Trophy are trademarks of their owners; this project is a non-commercial preservation effort and isn't affiliated with them.</p>
+    <ul class="sources">
+      <li><a href="https://spectrumcomputing.co.uk/entry/27508/ZX-Spectrum/Camel_Trophy_Game">Spectrum Computing: Camel Trophy Game</a>: Aquarius Edizioni, 1985; authors, price and licence details.</li>
+      <li><a href="https://www.rescogita.com/cvg/cvgfeature_en_01.php">“Camel Trophy Videogame: 20 years later”</a> by Steed Kulka (Rescogita): the story of the Spectrum game’s development in Milan.</li>
+      <li><a href="https://www.lemon64.com/game/camel-trophy">Lemon64: Camel Trophy</a>: the Commodore 64 game by Tequila.</li>
+      <li><a href="https://csdb.dk/release/?id=93032">CSDb: Camel Trophy Video Game</a>: the 1986 C64 release by The Mad Floppy Angel.</li>
+      <li><a href="https://www.cameltrophyportugal.com/automobilia/camel-trophy-commodore-64/">Camel Trophy Portugal</a>: the five C64 challenges described.</li>
+      <li><a href="https://en.wikipedia.org/wiki/Camel_Trophy">Wikipedia: Camel Trophy</a>: the real expedition.</li>
+      <li>Sinclair ZX Spectrum 48K ROM © Amstrad plc, distributed with Amstrad’s permission for use with emulators (copy from the <a href="https://sourceforge.net/projects/fuse-emulator/">Fuse emulator</a> project).</li>
+    </ul>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Rebuilt for the web by <a href="https://github.com/mattcodesgames">@mattcodesgames</a> with Claude (Anthropic).</span>
+    <span><a href="https://github.com/mattcodesgames/camel-trophy-8bit">Source on GitHub</a></span>
+  </div>
+</footer>
+</body>
+</html>

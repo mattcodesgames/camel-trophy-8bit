@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camel Trophy</title>
+<style>
+  :root {
+    --bg: #101014;
+    --panel: #1b1b22;
+    --panel-2: #24242d;
+    --text: #e8e6df;
+    --muted: #9a98a3;
+    --accent: #ffd400;
+    --line: #34343f;
+    --key: #2c2c35;
+    --key-text: #f3f1ea;
+    --key-red: #d33;
+    --key-green: #2a2;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  header h1 { font-size: 20px; margin: 0; letter-spacing: .02em; }
+  .stripes { display: flex; height: 18px; transform: skewX(-30deg); margin-left: auto; }
+  .stripes span { width: 12px; }
+  .screen-wrap { position: relative; background: #000; border-radius: 8px; overflow: hidden;
+    box-shadow: 0 6px 30px rgba(0,0,0,.5); }
+  canvas#screen { display: block; width: 100%; height: auto; image-rendering: pixelated;
+    image-rendering: crisp-edges; aspect-ratio: 320 / 256; }
+  .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.55); cursor: pointer; font-size: 18px; text-align: center; padding: 16px; }
+  .overlay[hidden] { display: none; }
+  .overlay b { color: var(--accent); }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+  .group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .group > .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; margin-right: 2px; }
+  button, select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 10px; font: inherit; cursor: pointer; }
+  button:hover, select:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 600; }
+  label.check { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .tape-progress { flex: 1 1 160px; min-width: 120px; height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+  .tape-progress > div { height: 100%; width: 0; background: var(--accent); }
+  #tapeStatus { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 110px; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 8px 0; }
+  summary { cursor: pointer; font-weight: 600; }
+  .help { color: var(--muted); }
+  .help kbd { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--text); font-size: 12px; }
+  .help li { margin: 4px 0; }
+  /* virtual keyboard */
+  #vkb { display: grid; gap: 4px; margin-top: 8px; user-select: none; -webkit-user-select: none; }
+  #vkb .row { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+  #vkb .row:nth-child(2) { padding-left: 2.5%; } #vkb .row:nth-child(3) { padding-left: 5%; }
+  .vk { background: var(--key); color: var(--key-text); border: 1px solid #000; border-radius: 4px; padding: 6px 2px 4px;
+    text-align: center; font-weight: 700; cursor: pointer; touch-action: none; position: relative; min-height: 40px; }
+  .vk small { display: block; font-size: 9px; font-weight: 400; color: var(--key-red); line-height: 1.1; min-height: 10px; }
+  .vk.down, .vk.latched { background: var(--accent); color: #111; }
+  .vk.wide { font-size: 11px; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 16px; }
+  @media (max-width: 640px) {
+    main { padding: 8px 16px; }
+    .stripes { display: none; }
+    .vk { min-height: 36px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Camel Trophy <span style="color:var(--muted);font-weight:400">· ZX Spectrum 48K</span></h1>
+    <div class="stripes" aria-hidden="true"><span style="background:#d00"></span><span style="background:#fd0"></span><span style="background:#0c0"></span><span style="background:#0cd"></span></div>
+  </header>
+
+  <div class="screen-wrap">
+    <canvas id="screen" width="320" height="256"></canvas>
+    <div class="overlay" id="startOverlay">
+      <div><b>Click to start</b><br><span style="font-size:14px;color:var(--muted)">The tape loads automatically (turbo loading is on).</span></div>
+    </div>
+  </div>
+
+  <div class="bar">
+    <div class="group">
+      <span class="label">Tape</span>
+      <button id="btnPlay">▶ Play</button>
+      <div class="tape-progress"><div id="tapeBar"></div></div>
+      <span id="tapeStatus">—</span>
+    </div>
+    <div class="group" id="partsGroup">
+      <span class="label">Load</span>
+    </div>
+  </div>
+
+  <div class="bar">
+    <div class="group">
+      <span class="label">Machine</span>
+      <button id="btnReset">Reset</button>
+      <button id="btnPause">Pause</button>
+      <label class="check"><input type="checkbox" id="chkTurbo" checked> Turbo load</label>
+      <label class="check"><input type="checkbox" id="chkMute"> Mute</label>
+    </div>
+    <div class="group">
+      <span class="label">State</span>
+      <button id="btnSave">Save</button>
+      <button id="btnLoad">Restore</button>
+    </div>
+    <div class="group">
+      <span class="label">Arrows</span>
+      <select id="selJoy">
+        <option value="kempston">Kempston joystick</option>
+        <option value="cursor">Cursor joystick (5-8, 0)</option>
+        <option value="sinclair">Sinclair (6-0)</option>
+        <option value="qaop">Q A O P + M</option>
+        <option value="edit">Caps Shift + 5-8 (BASIC)</option>
+      </select>
+    </div>
+    <div class="group">
+      <button id="btnFull">Fullscreen</button>
+      <button id="btnKbd">Keyboard</button>
+      <label class="check"><input type="file" id="fileTape" accept=".tzx,.tap" hidden><button id="btnFile">Open tape…</button></label>
+    </div>
+  </div>
+
+  <div id="vkb" hidden></div>
+
+  <details>
+    <summary>How to play</summary>
+    <ul class="help">
+      <li>Click the screen once to start (browsers need a click before sound can play). The game types <kbd>LOAD ""</kbd> and plays the tape for you.</li>
+      <li>The game comes in three parts on the tape:
+        <b>1 · Qualifying quiz</b> (answer with <kbd>1</kbd>–<kbd>3</kbd> or <kbd>4</kbd>, confirm with <kbd>Enter</kbd>; then type your name and get a crew code),
+        <b>2 · Route selection</b> (Zaire, Amazon, Borneo or D.I.Y.; press <kbd>Y</kbd> to accept a route) and
+        <b>3 · Driving game</b>.</li>
+      <li>Driving game: pick <kbd>2</kbd> (Kempston) to drive with the arrow keys and <kbd>Tab</kbd>, or <kbd>1</kbd> (Keyboard) to drive with <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> <kbd>T</kbd>.</li>
+      <li>Don't press <kbd>Space</kbd> while the tape is loading: on a Spectrum that is BREAK and stops the load.</li>
+      <li>Your keyboard is the Spectrum keyboard: <kbd>Shift</kbd> = Caps Shift, <kbd>Ctrl</kbd> or <kbd>Alt</kbd> = Symbol Shift, <kbd>Backspace</kbd> = Delete. Punctuation such as <kbd>"</kbd> <kbd>,</kbd> <kbd>.</kbd> is mapped automatically.</li>
+      <li>Arrow keys act as a joystick (choose the type above); <kbd>Tab</kbd> or <kbd>Right Alt</kbd> fires.</li>
+      <li>The tape stops after each part. When the game asks for the next part, it starts playing again by itself (or press <b>Play</b>). The <b>Load</b> buttons reset and load a specific part directly.</li>
+      <li><b>Save</b> / <b>Restore</b> keep one snapshot in this browser.</li>
+    </ul>
+  </details>
+
+  <footer>Z80 + ULA emulation written in C and compiled to WebAssembly. Sinclair 48K ROM © Amstrad, distributed with permission for emulator use. Camel Trophy © its respective owners.</footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

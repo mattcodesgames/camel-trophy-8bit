@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Camel Trophy</title>
+<style>
+  :root {
+    --bg: #1b1a24;
+    --panel: #26243a;
+    --ink: #e8e6f5;
+    --muted: #9c98b8;
+    --accent: #c9a24a;
+    --c64-blue: #40318d;
+    --c64-light: #7869c4;
+    --btn: #34314f;
+    --btn-hi: #48446b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #ece9f6; --panel: #ffffff; --ink: #221f36; --muted: #5f5a7d;
+      --btn: #ddd8f0; --btn-hi: #cbc4ea;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1a24; --panel: #26243a; --ink: #e8e6f5; --muted: #9c98b8;
+    --btn: #34314f; --btn-hi: #48446b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
+  header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  h1 { margin: 0; font-size: 22px; letter-spacing: .02em; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; }
+  .screen-wrap { position: relative; background: #000; border-radius: 10px; overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,.45), 0 0 0 6px var(--panel); aspect-ratio: 384 / 272; }
+  canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+  .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; background: rgba(64,49,141,.92); color: #a6a0ff; font-family: ui-monospace, Menlo, monospace;
+    cursor: pointer; text-align: center; padding: 16px; }
+  .overlay b { font-size: clamp(18px, 4vw, 30px); color: #fff; letter-spacing: .08em; }
+  .overlay.hidden { display: none; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 10px; }
+  button { background: var(--btn); color: var(--ink); border: 0; border-radius: 7px; padding: 8px 12px;
+    font: inherit; font-size: 14px; cursor: pointer; }
+  button:hover { background: var(--btn-hi); }
+  button[aria-pressed="true"] { outline: 2px solid var(--accent); }
+  .status { color: var(--muted); font-size: 13px; min-height: 1.4em; font-family: ui-monospace, Menlo, monospace; }
+  .help { background: var(--panel); border-radius: 10px; padding: 12px 16px; margin-top: 14px; font-size: 14px; }
+  .help h2 { font-size: 15px; margin: 0 0 6px; }
+  .help ul { margin: 0; padding-left: 18px; }
+  kbd { background: var(--btn); border-radius: 4px; padding: 1px 6px; font: 12px ui-monospace, Menlo, monospace; }
+  .touch { display: none; justify-content: space-between; align-items: center; margin-top: 14px; user-select: none; -webkit-user-select: none; touch-action: none; }
+  .dpad { position: relative; width: 156px; height: 156px; }
+  .dpad div, .fire { position: absolute; background: var(--btn); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .dpad .u { left: 52px; top: 0; width: 52px; height: 52px; }
+  .dpad .d { left: 52px; top: 104px; width: 52px; height: 52px; }
+  .dpad .l { left: 0; top: 52px; width: 52px; height: 52px; }
+  .dpad .r { left: 104px; top: 52px; width: 52px; height: 52px; }
+  .fire { position: static; width: 96px; height: 96px; border-radius: 50%; background: #a03030; color: #fff; font-size: 15px; font-weight: 600; }
+  .dpad .on, .fire.on { background: var(--accent); }
+  @media (pointer: coarse) { .touch { display: flex; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1><span>CAMEL</span> TROPHY</h1>
+    <div class="sub">Commodore 64 · running in WebAssembly</div>
+  </header>
+
+  <div class="screen-wrap">
+    <canvas id="screen" width="384" height="272"></canvas>
+    <div class="overlay" id="overlay">
+      <b>PRESS ANY KEY OR CLICK</b>
+      <div>to switch on the Commodore 64</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button id="btn-pause">Pause</button>
+    <button id="btn-reset">Reset</button>
+    <button id="btn-mute">Sound: on</button>
+    <button id="btn-turbo" aria-pressed="false">Fast-forward</button>
+    <button id="btn-port">Joystick: port 2</button>
+    <button id="btn-save">Save state</button>
+    <button id="btn-load">Load state</button>
+    <button id="btn-full">Fullscreen</button>
+  </div>
+  <div class="status" id="status">Loading…</div>
+
+  <div class="touch" id="touch">
+    <div class="dpad">
+      <div class="u" data-bit="1">▲</div><div class="l" data-bit="4">◀</div>
+      <div class="r" data-bit="8">▶</div><div class="d" data-bit="2">▼</div>
+    </div>
+    <div class="fire" data-bit="16">FIRE</div>
+  </div>
+
+  <div class="help">
+    <h2>Controls</h2>
+    <ul>
+      <li>Joystick: <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> and <kbd>Space</kbd> for fire. Gamepads work too.</li>
+      <li>Press fire to leave the credits screen, start the game and drop supplies from the plane.</li>
+      <li>Other keys go to the C64 keyboard: <kbd>Enter</kbd> = RETURN, <kbd>Esc</kbd> = RUN/STOP, <kbd>F1</kbd>–<kbd>F7</kbd>, <kbd>PgDn</kbd> = RESTORE.</li>
+      <li><kbd>F9</kbd> saves a state, <kbd>F10</kbd> loads it, <kbd>F12</kbd> resets. Fast-forward skips the long decrunch pauses.</li>
+      <li>Stage 1: drop the crate, then steer its parachute onto the black target with the joystick. Stage 2: drive the Land Rover.</li>
+    </ul>
+  </div>
+</main>
+
+<script>
+"use strict";
+/* Filled in by build.sh for the self-contained build; otherwise fetched next to this page. */
+const EMBEDDED_WASM = null;
+const EMBEDDED_DISK = null;
+
+const $ = (id) => document.getElementById(id);
+const statusEl = $("status");
+const canvas = $("screen");
+const ctx = canvas.getContext("2d");
+const image = ctx.createImageData(384, 272);
+
+let wasm = null, mem = null, diskBytes = null;
+let running = false, paused = false, muted = false, turbo = false, joyPort = 2;
+let audioCtx = null, audioNode = null;
+let keyJoy = 0, padJoy = 0, touchJoy = 0;
+/* Short taps are latched so every press is visible to the C64 for at least MIN_HOLD frames. */
+const MIN_HOLD = 3;
+let frameNo = 0, joyLatch = 0, joyLatchUntil = 0;
+const keyDownAt = new Map(), keyRelease = new Map();
+
+function b64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function loadBytes(embedded, url) {
+  if (embedded) return b64ToBytes(embedded);
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(url + ": " + r.status);
+  return new Uint8Array(await r.arrayBuffer());
+}
+
+async function boot() {
+  const wasmBytes = await loadBytes(EMBEDDED_WASM, "c64.wasm");
+  diskBytes = await loadBytes(EMBEDDED_DISK, "camel.d64");
+  const { instance } = await WebAssembly.instantiate(wasmBytes, {
+    env: {
+      host_log(ptr, len) {
+        const s = new TextDecoder().decode(new Uint8Array(mem.buffer, ptr, len));
+        console.log("[c64]", s);
+      },
+    },
+  });
+  wasm = instance.exports;
+  mem = wasm.memory;
+  statusEl.textContent = "Ready.";
+}
+
+function powerOn() {
+  const rate = audioCtx ? audioCtx.sampleRate : 44100;
+  wasm.c64_init(rate);
+  new Uint8Array(mem.buffer, wasm.c64_filebuf(), diskBytes.length).set(diskBytes);
+  const r = wasm.c64_load_d64(diskBytes.length);
+  statusEl.textContent = r === 0 ? "Running." : "Failed to load disk (" + r + ")";
+}
+
+/* ---------------- audio: an AudioWorklet that plays a ring buffer fed each frame -------------- */
+const WORKLET = `
+class C64Out extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.buf = new Float32Array(32768); this.r = 0; this.w = 0; this.n = 0; this.last = 0;
+    this.port.onmessage = (e) => {
+      const d = e.data;
+      if (d === "flush") { this.r = this.w = this.n = 0; return; }
+      for (let i = 0; i < d.length; i++) {
+        if (this.n >= this.buf.length) break;
+        this.buf[this.w] = d[i]; this.w = (this.w + 1) & 32767; this.n++;
+      }
+      /* keep latency bounded: drop the oldest audio if more than ~200ms is queued */
+      const max = sampleRate * 0.2 | 0;
+      while (this.n > max) { this.r = (this.r + 1) & 32767; this.n--; }
+    };
+  }
+  process(inputs, outputs) {
+    const out = outputs[0][0];
+    for (let i = 0; i < out.length; i++) {
+      if (this.n > 0) { this.last = this.buf[this.r]; this.r = (this.r + 1) & 32767; this.n--; }
+      else this.last *= 0.995;
+      out[i] = this.last;
+    }
+    for (let c = 1; c < outputs[0].length; c++) outputs[0][c].set(out);
+    return true;
+  }
+}
+registerProcessor("c64-out", C64Out);`;
+
+async function startAudio() {
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+    const url = URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" }));
+    await audioCtx.audioWorklet.addModule(url);
+    audioNode = new AudioWorkletNode(audioCtx, "c64-out", { outputChannelCount: [2] });
+    audioNode.connect(audioCtx.destination);
+    await audioCtx.resume();
+  } catch (e) {
+    console.warn("audio unavailable", e);
+    audioCtx = null; audioNode = null;
+  }
+}
+
+/* ---------------- main loop: emulate at PAL 50.125 Hz regardless of display refresh -------------- */
+const FRAME_MS = 1000 / 50.125;
+let lastT = 0, acc = 0;
+
+function runFrame() {
+  frameNo++;
+  if (frameNo > joyLatchUntil) joyLatch = 0;
+  for (const [k, at] of keyRelease) if (frameNo >= at) { wasm.c64_key(k, 0); keyRelease.delete(k); }
+  wasm.c64_joy(joyPort, keyJoy | padJoy | touchJoy | joyLatch);
+  wasm.c64_joy(3 - joyPort, 0);
+  wasm.c64_frame();
+  const n = wasm.c64_audio_count();
+  if (audioNode && n && !muted && !turbo) {
+    audioNode.port.postMessage(new Float32Array(mem.buffer, wasm.c64_audio(), n).slice());
+  }
+  wasm.c64_audio_clear();
+}
+
+function draw() {
+  image.data.set(new Uint8Array(mem.buffer, wasm.c64_framebuffer(), 384 * 272 * 4));
+  ctx.putImageData(image, 0, 0);
+}
+
+/* Emulation is paced by a timer (rAF can be throttled), drawing happens on rAF. */
+let dirty = false;
+function tick() {
+  const t = performance.now();
+  pollGamepads();
+  if (!running || paused) { lastT = t; return; }
+  acc += Math.min(t - lastT, 100);
+  lastT = t;
+  let ran = 0;
+  if (turbo) { for (let i = 0; i < 8; i++) runFrame(); acc = 0; ran = 8; }
+  while (acc >= FRAME_MS && ran < 4) { runFrame(); acc -= FRAME_MS; ran++; }
+  if (ran) dirty = true;
+}
+function loop() {
+  requestAnimationFrame(loop);
+  tick();
+  if (dirty) { draw(); dirty = false; }
+}
+setInterval(() => { tick(); if (dirty && document.visibilityState === "visible") { draw(); dirty = false; } }, 8);
+
+/* ---------------- input -------------- */
+const JOY_KEYS = { ArrowUp: 1, ArrowDown: 2, ArrowLeft: 4, ArrowRight: 8, Space: 16 };
+/* PC key (event.code) -> C64 keyboard matrix code (column * 8 + row), mapped by position */
+const C64_KEYS = {
+  Backspace: 0, Enter: 1, F7: 3, F1: 4, F3: 5, F5: 6,
+  Digit3: 8, KeyW: 9, KeyA: 10, Digit4: 11, KeyZ: 12, KeyS: 13, KeyE: 14, ShiftLeft: 15,
+  Digit5: 16, KeyR: 17, KeyD: 18, Digit6: 19, KeyC: 20, KeyF: 21, KeyT: 22, KeyX: 23,
+  Digit7: 24, KeyY: 25, KeyG: 26, Digit8: 27, KeyB: 28, KeyH: 29, KeyU: 30, KeyV: 31,
+  Digit9: 32, KeyI: 33, KeyJ: 34, Digit0: 35, KeyM: 36, KeyK: 37, KeyO: 38, KeyN: 39,
+  Minus: 40, KeyP: 41, KeyL: 42, Equal: 43, Period: 44, Semicolon: 45, BracketLeft: 46, Comma: 47,
+  Delete: 48, BracketRight: 49, Quote: 50, Home: 51, ShiftRight: 52, Backslash: 53, PageUp: 54, Slash: 55,
+  Digit1: 56, Backquote: 57, Tab: 58, Digit2: 59, Space: 60, AltLeft: 61, KeyQ: 62, Escape: 63, PageDown: 64,
+  F2: 4, F4: 5, F6: 6, F8: 3,
+};
+
+function onKey(e, down) {
+  if (!running) { if (down) start(); e.preventDefault(); return; }
+  if (down && !e.repeat) {
+    if (e.code === "F9") { saveState(); e.preventDefault(); return; }
+    if (e.code === "F10") { loadState(); e.preventDefault(); return; }
+    if (e.code === "F12") { powerOn(); e.preventDefault(); return; }
+  }
+  if (e.metaKey) return;
+  const jb = JOY_KEYS[e.code];
+  if (jb) {
+    keyJoy = down ? keyJoy | jb : keyJoy & ~jb;
+    if (down) { joyLatch |= jb; joyLatchUntil = frameNo + MIN_HOLD; }
+    e.preventDefault();
+    /* Space is also the C64 space bar: the intro and title screens poll the keyboard */
+    if (e.code !== "Space") return;
+  }
+  const k = C64_KEYS[e.code];
+  if (k !== undefined) {
+    if (!e.repeat) {
+      if (down) { wasm.c64_key(k, 1); keyDownAt.set(k, frameNo); keyRelease.delete(k); }
+      else keyRelease.set(k, (keyDownAt.get(k) || 0) + MIN_HOLD);
+    }
+    e.preventDefault();
+  }
+}
+addEventListener("keydown", (e) => onKey(e, true));
+addEventListener("keyup", (e) => onKey(e, false));
+addEventListener("blur", () => {
+  keyJoy = 0;
+  if (wasm) for (let k = 0; k <= 64; k++) wasm.c64_key(k, 0);
+});
+
+function pollGamepads() {
+  if (!navigator.getGamepads) return;
+  let bits = 0;
+  for (const gp of navigator.getGamepads()) {
+    if (!gp) continue;
+    const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, b = gp.buttons;
+    const pressed = (i) => b[i] && b[i].pressed;
+    if (ay < -0.5 || pressed(12)) bits |= 1;
+    if (ay > 0.5 || pressed(13)) bits |= 2;
+    if (ax < -0.5 || pressed(14)) bits |= 4;
+    if (ax > 0.5 || pressed(15)) bits |= 8;
+    if (pressed(0) || pressed(1) || pressed(2) || pressed(3) || pressed(5) || pressed(7)) bits |= 16;
+  }
+  padJoy = bits;
+}
+
+/* touch controls */
+for (const el of document.querySelectorAll("#touch [data-bit]")) {
+  const bit = +el.dataset.bit;
+  /* FIRE also taps the C64 space bar, which the intro and title screens wait for */
+  const on = (e) => {
+    e.preventDefault();
+    if (!running) { start(); return; }
+    touchJoy |= bit; joyLatch |= bit; joyLatchUntil = frameNo + MIN_HOLD; el.classList.add("on");
+    if (bit === 16) { wasm.c64_key(60, 1); keyDownAt.set(60, frameNo); keyRelease.delete(60); }
+  };
+  const off = (e) => {
+    e.preventDefault();
+    if (!el.classList.contains("on")) return;
+    touchJoy &= ~bit; el.classList.remove("on");
+    if (bit === 16 && wasm) keyRelease.set(60, (keyDownAt.get(60) || 0) + MIN_HOLD);
+  };
+  el.addEventListener("pointerdown", on);
+  el.addEventListener("pointerup", off);
+  el.addEventListener("pointercancel", off);
+  el.addEventListener("pointerleave", off);
+}
+
+/* ---------------- toolbar -------------- */
+let memState = null;
+function saveState() {
+  if (!running) return;
+  wasm.c64_save_state();
+  memState = new Uint8Array(mem.buffer, wasm.c64_state_buf(), wasm.c64_state_size()).slice();
+  let bin = "";
+  for (let i = 0; i < memState.length; i += 0x8000) bin += String.fromCharCode.apply(null, memState.subarray(i, i + 0x8000));
+  try {
+    localStorage.setItem("camel-trophy-state", btoa(bin));
+    statusEl.textContent = "State saved.";
+  } catch (e) {
+    statusEl.textContent = "State saved for this session (browser storage unavailable).";
+  }
+}
+function loadState() {
+  if (!running) return;
+  let bytes = memState;
+  if (!bytes) {
+    try { const s = localStorage.getItem("camel-trophy-state"); if (s) bytes = b64ToBytes(s); } catch (e) {}
+  }
+  if (!bytes) { statusEl.textContent = "No saved state yet."; return; }
+  if (bytes.length !== wasm.c64_state_size()) { statusEl.textContent = "Saved state is from another version."; return; }
+  new Uint8Array(mem.buffer, wasm.c64_state_buf(), bytes.length).set(bytes);
+  wasm.c64_load_state();
+  if (audioNode) audioNode.port.postMessage("flush");
+  statusEl.textContent = "State loaded.";
+}
+
+$("btn-pause").onclick = () => {
+  paused = !paused;
+  $("btn-pause").textContent = paused ? "Resume" : "Pause";
+  $("btn-pause").setAttribute("aria-pressed", paused);
+  if (audioCtx) paused ? audioCtx.suspend() : audioCtx.resume();
+};
+$("btn-reset").onclick = () => { if (running) powerOn(); else start(); };
+$("btn-mute").onclick = () => {
+  muted = !muted;
+  $("btn-mute").textContent = muted ? "Sound: off" : "Sound: on";
+  if (muted && audioNode) audioNode.port.postMessage("flush");
+};
+$("btn-turbo").onclick = () => {
+  turbo = !turbo;
+  $("btn-turbo").setAttribute("aria-pressed", turbo);
+  if (turbo && audioNode) audioNode.port.postMessage("flush");
+};
+$("btn-port").onclick = () => {
+  joyPort = 3 - joyPort;
+  $("btn-port").textContent = "Joystick: port " + joyPort;
+};
+$("btn-save").onclick = saveState;
+$("btn-load").onclick = loadState;
+$("btn-full").onclick = () => {
+  const el = document.querySelector(".screen-wrap");
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (el.requestFullscreen) el.requestFullscreen();
+};
+for (const b of document.querySelectorAll(".toolbar button")) b.addEventListener("keydown", (e) => e.preventDefault());
+
+let starting = false;
+async function start() {
+  if (running || starting || !wasm) return;
+  starting = true;
+  await startAudio();
+  powerOn();
+  $("overlay").classList.add("hidden");
+  running = true;
+  starting = false;
+  canvas.focus();
+}
+$("overlay").addEventListener("click", start);
+
+boot().then(() => requestAnimationFrame(loop)).catch((e) => {
+  statusEl.textContent = "Failed to start: " + e.message +
+    (location.protocol === "file:" ? " (open CamelTrophy.html, or serve this folder over http)" : "");
+});
+</script>
+</body>
+</html>

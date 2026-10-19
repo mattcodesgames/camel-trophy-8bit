@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+.DS_Store
+zx-spectrum/dist/
+commodore-64/.venv
+commodore-64/CamelTrophy.html
