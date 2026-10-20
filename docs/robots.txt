@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://mattcodesgames.github.io/camel-trophy-8bit/sitemap.xml
